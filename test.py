@@ -25,6 +25,9 @@ def extract_and_print_info(driver):
         email = extract_element_attribute(div_element, ".//a[starts-with(@href, 'mailto:')]", "textContent")
         website = extract_element_attribute(div_element, ".//a[starts-with(@href, 'http')]", "href")
 
+        # Extracting the license status
+        license_status = extract_license_status(driver)
+
         print("Address:", address)
         print("City:", city)
         print("Country:", country)
@@ -32,10 +35,25 @@ def extract_and_print_info(driver):
         print("Phone:", phone)
         print("Email:", email)
         print("Website:", website)
+        print("License Valid:", license_status)
         print("=" * 50)
 
     except Exception as e:
         print("An error occurred while extracting info:", e)
+
+def extract_license_status(driver):
+    """Extracts and returns the license status as a boolean."""
+    try:
+        # Locate the element that contains the license status
+        status_element = driver.find_element(By.XPATH, "//div[contains(text(), 'Licence status')]/following-sibling::div")
+        status_text = status_element.text.strip()
+        
+        # Set the license status to True if 'Valid', otherwise False
+        return True if "Valid" in status_text else False
+
+    except Exception as e:
+        print("Error while extracting license status:", e)
+        return False  # Return False if the status is not found or there is an error
 
 def extract_element_text(parent_element, xpath, following_xpath):
     """Extracts text content from an element."""
@@ -89,7 +107,7 @@ def main():
 
             original_window_handle = driver.current_window_handle
 
-            for i in range(2): # 25
+            for i in range(5, 8): # 25
                 try:
                     buttons[i * 3].click()  # Click the 'View details' button
 
