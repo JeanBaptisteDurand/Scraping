@@ -2,10 +2,10 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 def extract_and_print_info(driver):
-    """Extrait et affiche les informations de l'entreprise sur la page de détails."""
+    """Extracts and prints company details from the opened detail page."""
     try:
         h4_element = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.TAG_NAME, "h4"))
@@ -32,13 +32,13 @@ def extract_and_print_info(driver):
         print("Phone:", phone)
         print("Email:", email)
         print("Website:", website)
-        print("="*50)
+        print("=" * 50)
 
     except Exception as e:
         print("An error occurred while extracting info:", e)
 
 def extract_element_text(parent_element, xpath, following_xpath):
-    """Extrait le texte d'un élément en fonction de son XPath."""
+    """Extracts text content from an element."""
     try:
         element = parent_element.find_element(By.XPATH, xpath)
         return element.find_element(By.XPATH, following_xpath).get_attribute('textContent').strip()
@@ -46,54 +46,76 @@ def extract_element_text(parent_element, xpath, following_xpath):
         return None
 
 def extract_element_attribute(parent_element, xpath, attribute):
-    """Extrait un attribut d'un élément en fonction de son XPath."""
+    """Extracts an attribute value from an element."""
     try:
         element = parent_element.find_element(By.XPATH, xpath)
         return element.get_attribute(attribute).strip()
     except:
         return None
 
+def click_next_page(driver, current_page):
+    try:
+        next_button = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "a[data-cb-name='JumpToNext']"))
+        )
+
+        if not next_button.is_displayed():
+            driver.execute_script("arguments[0].scrollIntoView(true);", next_button)
+
+        driver.execute_script("arguments[0].click();", next_button)  # JavaScript click to bypass issues
+
+        WebDriverWait(driver, 10).until(
+            lambda d: d.current_url != driver.current_url or 
+                      d.find_element(By.CSS_SELECTOR, "select.cbResultSetNavigationDDown").get_attribute("value") == str(current_page + 1)
+        )
+        return True
+
+    except Exception as e:
+        print(f"❌ Error while clicking 'Next': {e}")
+        return False
+
 def main():
-    """Exécute le script principal pour récupérer les informations des 25 premiers résultats."""
+    """Runs the full scraping process over all 2341 pages."""
     driver = webdriver.Chrome()
     driver.get("https://www.pefc.org/find-certified")
 
     try:
-        buttons = WebDriverWait(driver, 20).until(
-            EC.presence_of_all_elements_located((By.CLASS_NAME, "button-round"))
-        )
+        for page in range(1, 6):  # 2341 iterations
+            print(f"\n🚀 Scraping page {page}/2341...\n")
 
-        original_window_handle = driver.current_window_handle
+            buttons = WebDriverWait(driver, 10).until(
+                EC.presence_of_all_elements_located((By.CLASS_NAME, "button-round"))
+            )
 
-        for i in range(25):
-            try:
-                buttons[i * 3].click()
+            original_window_handle = driver.current_window_handle
 
-                # Attendre que la nouvelle fenêtre apparaisse
-                WebDriverWait(driver, 20).until(lambda d: len(d.window_handles) > 1)
+            for i in range(2): # 25
+                try:
+                    buttons[i * 3].click()  # Click the 'View details' button
 
-                new_window_handle = [win for win in driver.window_handles if win != original_window_handle][0]
-                driver.switch_to.window(new_window_handle)
+                    WebDriverWait(driver, 5).until(lambda d: len(d.window_handles) > 1)
 
-                # Extraire et afficher les infos
-                extract_and_print_info(driver)
+                    new_window_handle = [win for win in driver.window_handles if win != original_window_handle][0]
+                    driver.switch_to.window(new_window_handle)
 
-                # ✅ Revenir sur l'onglet principal avant de fermer
-                driver.close()
-                driver.switch_to.window(original_window_handle)
+                    extract_and_print_info(driver)
 
-                # ✅ Recharge la liste des boutons pour éviter les références obsolètes
-                buttons = WebDriverWait(driver, 20).until(
-                    EC.presence_of_all_elements_located((By.CLASS_NAME, "button-round"))
-                )
+                    driver.close()
+                    driver.switch_to.window(original_window_handle)
 
-            except TimeoutException:
-                print(f"Timeout sur l'élément {i+1}, passage au suivant.")
-            except Exception as e:
-                print(f"Erreur lors de l'extraction du {i+1}ème élément:", e)
+                    buttons = WebDriverWait(driver, 10).until(
+                        EC.presence_of_all_elements_located((By.CLASS_NAME, "button-round"))
+                    )
+
+                except (TimeoutException, NoSuchElementException) as e:
+                    print(f"Error processing item {i+1}: {e}")
+
+            # Click on 'Next' and check if the next page exists
+            if not click_next_page(driver, page):
+                break  # Stop if there is no next page
 
     finally:
-        print("Done")
+        print("\n✅ Scraping complete.")
         driver.quit()
 
 if __name__ == "__main__":
