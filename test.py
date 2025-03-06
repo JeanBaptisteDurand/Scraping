@@ -3,31 +3,28 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
-import time
 
 def extract_and_print_info(driver):
+    """Extrait et affiche les informations de l'entreprise sur la page de détails."""
     try:
-        # Find the <h4> element and print its text
-        h4_element = driver.find_element(By.TAG_NAME, "h4")
+        h4_element = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.TAG_NAME, "h4"))
+        )
         print(h4_element.text)
 
-        # Find the div immediately following the <h4> element
         div_element = h4_element.find_element(By.XPATH, "following-sibling::div")
         div_text = div_element.text
-
-        # Split the text by lines and extract the relevant parts
         lines = div_text.split('\n')
+
         address = lines[0] if len(lines) > 0 else None
         city = lines[1] if len(lines) > 1 else None
         country = lines[2] if len(lines) > 2 else None
 
-        # Find other elements (VAT, Phone, Email, Website) and extract their values
         vat = extract_element_text(div_element, ".//strong[contains(text(), 'VAT n°:')]", "following-sibling::text()")
         phone = extract_element_attribute(div_element, ".//a[starts-with(@href, 'tel:')]", "textContent")
         email = extract_element_attribute(div_element, ".//a[starts-with(@href, 'mailto:')]", "textContent")
         website = extract_element_attribute(div_element, ".//a[starts-with(@href, 'http')]", "href")
 
-        # Print the extracted information
         print("Address:", address)
         print("City:", city)
         print("Country:", country)
@@ -35,63 +32,69 @@ def extract_and_print_info(driver):
         print("Phone:", phone)
         print("Email:", email)
         print("Website:", website)
+        print("="*50)
 
     except Exception as e:
-        print("An error occurred:", e)
+        print("An error occurred while extracting info:", e)
 
 def extract_element_text(parent_element, xpath, following_xpath):
+    """Extrait le texte d'un élément en fonction de son XPath."""
     try:
         element = parent_element.find_element(By.XPATH, xpath)
-        text = element.find_element(By.XPATH, following_xpath).get_attribute('textContent').strip()
-        return text if text else None
+        return element.find_element(By.XPATH, following_xpath).get_attribute('textContent').strip()
     except:
         return None
 
 def extract_element_attribute(parent_element, xpath, attribute):
+    """Extrait un attribut d'un élément en fonction de son XPath."""
     try:
         element = parent_element.find_element(By.XPATH, xpath)
-        attr_value = element.get_attribute(attribute)
-        return attr_value.strip() if attr_value and attr_value.strip() else None
+        return element.get_attribute(attribute).strip()
     except:
         return None
 
+def main():
+    """Exécute le script principal pour récupérer les informations des 25 premiers résultats."""
+    driver = webdriver.Chrome()
+    driver.get("https://www.pefc.org/find-certified")
 
+    try:
+        buttons = WebDriverWait(driver, 20).until(
+            EC.presence_of_all_elements_located((By.CLASS_NAME, "button-round"))
+        )
 
-# Initialize Chrome WebDriver
-driver = webdriver.Chrome()
+        original_window_handle = driver.current_window_handle
 
-# Open a webpage
-driver.get("https://www.pefc.org/find-certified")
+        for i in range(25):
+            try:
+                buttons[i * 3].click()
 
-# Store the handle of the original window
-original_window_handle = driver.current_window_handle
+                # Attendre que la nouvelle fenêtre apparaisse
+                WebDriverWait(driver, 20).until(lambda d: len(d.window_handles) > 1)
 
-# Add a wait here if necessary to ensure the page has loaded and the buttons are present
-time.sleep(20)  # Waits for 40 seconds, adjust as needed
+                new_window_handle = [win for win in driver.window_handles if win != original_window_handle][0]
+                driver.switch_to.window(new_window_handle)
 
-# Find all buttons with class "button-round"
-buttons = driver.find_elements(By.CLASS_NAME, "button-round")
+                # Extraire et afficher les infos
+                extract_and_print_info(driver)
 
-# Click the first button (if it exists)
-if len(buttons) > 0:
-    buttons[0].click()
+                # ✅ Revenir sur l'onglet principal avant de fermer
+                driver.close()
+                driver.switch_to.window(original_window_handle)
 
-# Wait for the new page to load
-time.sleep(10)  # Adjust the wait time as needed
+                # ✅ Recharge la liste des boutons pour éviter les références obsolètes
+                buttons = WebDriverWait(driver, 20).until(
+                    EC.presence_of_all_elements_located((By.CLASS_NAME, "button-round"))
+                )
 
-# Switch to the new window/tab
-windows = driver.window_handles
-driver.switch_to.window(windows[-1])  # Assumes the new window is the last one opened
-extract_and_print_info(driver)
-driver.close()
-driver.switch_to.window(original_window_handle)
+            except TimeoutException:
+                print(f"Timeout sur l'élément {i+1}, passage au suivant.")
+            except Exception as e:
+                print(f"Erreur lors de l'extraction du {i+1}ème élément:", e)
 
-time.sleep(5)
+    finally:
+        print("Done")
+        driver.quit()
 
-# ADD CLICK TO THE NEXT PAGE !!!!!!!!!!!!!!
-
-# Wait for user input to quit
-input("Press Enter to quit")
-
-# Clean up: close the browser
-driver.quit()
+if __name__ == "__main__":
+    main()
