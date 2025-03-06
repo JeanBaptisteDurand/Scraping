@@ -3,14 +3,16 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from write_csv import CSVWriter
 
-def extract_and_print_info(driver):
-    """Extracts and prints company details from the opened detail page."""
+def extract_and_print_info(driver, writer):
+    """Extracts and prints company details from the opened detail page, then writes to CSV."""
     try:
         h4_element = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.TAG_NAME, "h4"))
         )
-        print(h4_element.text)
+        name = h4_element.text
+        print(name)
 
         div_element = h4_element.find_element(By.XPATH, "following-sibling::div")
         div_text = div_element.text
@@ -37,6 +39,9 @@ def extract_and_print_info(driver):
         print("Website:", website)
         print("License Valid:", license_status)
         print("=" * 50)
+
+        # Write to CSV
+        writer.write_row([name, address, city, country, vat, phone, email, website, license_status])
 
     except Exception as e:
         print("An error occurred while extracting info:", e)
@@ -94,11 +99,12 @@ def click_next_page(driver, current_page):
 
 def main():
     """Runs the full scraping process over all 2341 pages."""
+    writer = CSVWriter()
     driver = webdriver.Chrome()
     driver.get("https://www.pefc.org/find-certified")
 
     try:
-        for page in range(1, 6):  # 2341 iterations
+        for page in range(1, 2341):  # 2341 iterations
             print(f"\n🚀 Scraping page {page}/2341...\n")
 
             buttons = WebDriverWait(driver, 10).until(
@@ -107,7 +113,7 @@ def main():
 
             original_window_handle = driver.current_window_handle
 
-            for i in range(5, 8): # 25
+            for i in range(25): # 25
                 try:
                     buttons[i * 3].click()  # Click the 'View details' button
 
@@ -116,7 +122,7 @@ def main():
                     new_window_handle = [win for win in driver.window_handles if win != original_window_handle][0]
                     driver.switch_to.window(new_window_handle)
 
-                    extract_and_print_info(driver)
+                    extract_and_print_info(driver, writer)
 
                     driver.close()
                     driver.switch_to.window(original_window_handle)
