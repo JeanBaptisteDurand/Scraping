@@ -123,7 +123,7 @@ def main():
     driver.set_window_size(1100, 1080)  
 
     try:
-        for page in range(1, 2341):  # 2341 iterations
+        for page in range(2, 2341):  # 2341 iterations
             if page != 1:
                 if not navigate_to_page(driver, page):
                     break
@@ -147,7 +147,7 @@ def main():
 
             original_window_handle = driver.current_window_handle
 
-            for i in range(1):
+            for i in range(25): #25
                 try:
                     driver.execute_script("arguments[0].scrollIntoView(true);", buttons[i * 3])
                     time.sleep(0.5)
