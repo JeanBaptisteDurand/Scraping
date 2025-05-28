@@ -5,24 +5,20 @@
 Trades scraper pour l’API Ape.store
 ==================================
 
-• 6 workers – un par fichier d’input CSV :
-      W1 : tokens_0000-1000.csv
-      W2 : tokens_1000-2000.csv
-      W3 : tokens_2000-3000.csv
-      W4 : tokens_3000-4000.csv
-      W5 : tokens_4000-5000.csv
-      W6 : tokens_5000-6000.csv
-• Pour chaque ligne lue, on extrait `address`
-  → GET https://ape.store/api/token/8453/<address>/trades
-• Toutes les entrées du tableau JSON sont écrites dans
-  un CSV dédié au worker : trades_0000-1000.csv, etc.
-• Progression en direct : « WorkerX : n / total ».
+• 6 workers – un par fichier d’input CSV
+• GET https://ape.store/api/token/8453/<address>/trades
+• Après **10 tentatives infructueuses** sur une adresse :
+      – le token est écrit dans un fichier erreurs_*.txt
+      – on passe à l’adresse suivante
+• Résultats :
+      – trades_0000-1000.csv … trades_5000-6000.csv
+      – erreurs_0000-1000.txt … erreurs_5000-6000.txt
+• Affichage live : WorkerX : n / total
 """
 
 import csv
 import sys
 import time
-import glob
 import requests
 import concurrent.futures
 import threading
@@ -42,6 +38,7 @@ INPUT_FILES = [
 CHAIN_ID       = 8453
 BASE_ENDPOINT  = "https://ape.store/api/token"
 RETRY_DELAY_S  = 3
+MAX_RETRIES    = 10
 HEADERS = {
     "User-Agent": ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
                    "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"),
@@ -52,8 +49,8 @@ HEADERS = {
 }
 # ────────────────────────────────────────────── PROGRESSION
 progress_lock = threading.Lock()
-progress_done   : List[int] = []
-progress_total  : List[int] = []
+progress_done: List[int]   = []
+progress_total: List[int]  = []
 
 def display_progress() -> None:
     line = " | ".join(
@@ -64,28 +61,32 @@ def display_progress() -> None:
     sys.stdout.flush()
 
 # ────────────────────────────────────────────── NETWORK
-def fetch_trades(session: requests.Session, address: str) -> List[Dict]:
-    """GET /token/<chain>/<address>/trades ; retry illimité."""
+def fetch_trades(session: requests.Session, address: str) -> List[Dict] | None:
+    """GET trades ; retourne None après MAX_RETRIES échecs."""
     url = f"{BASE_ENDPOINT}/{CHAIN_ID}/{address}/trades"
-    while True:
+    for attempt in range(1, MAX_RETRIES + 1):
         try:
             r = session.get(url, timeout=10, headers=HEADERS)
             r.raise_for_status()
             return r.json() or []
         except Exception as exc:
+            if attempt == MAX_RETRIES:
+                return None
             with progress_lock:
                 sys.stdout.write("\r\033[K")
                 sys.stdout.flush()
-                print(f"[⚠] {address[:10]}… : {exc} – retry dans {RETRY_DELAY_S}s")
+                print(f"[⚠] {address[:10]}… : {exc} – retry {attempt}/{MAX_RETRIES}")
             time.sleep(RETRY_DELAY_S)
 
 # ────────────────────────────────────────────── WORKER
 def scrape_file(job_id: int, in_path: Path) -> None:
-    out_path = Path(str(in_path).replace("tokens_", "trades_"))
-    writer   = None
+    out_path    = Path(str(in_path).replace("tokens_", "trades_"))
+    err_path    = Path(str(in_path).replace("tokens_", "erreurs_")).with_suffix(".txt")
+    writer      = None
 
     with open(in_path, newline="", encoding="utf-8") as f_in, \
          open(out_path, "w", newline="", encoding="utf-8") as f_out, \
+         open(err_path, "w", encoding="utf-8") as f_err, \
          requests.Session() as session:
 
         reader = csv.DictReader(f_in)
@@ -95,14 +96,14 @@ def scrape_file(job_id: int, in_path: Path) -> None:
         for addr in addresses:
             trades = fetch_trades(session, addr)
 
-            if trades:
-                # initialiser writer avec les champs du JSON + l'adresse
+            if trades is None:                            # 10 échecs
+                f_err.write(addr + "\n")
+            elif trades:
                 if writer is None:
                     fieldnames = list(trades[0].keys()) + ["tokenAddress"]
                     writer = csv.DictWriter(f_out, fieldnames=fieldnames,
                                             extrasaction="ignore")
                     writer.writeheader()
-
                 for trade in trades:
                     trade["tokenAddress"] = addr
                     writer.writerow(trade)
@@ -114,23 +115,21 @@ def scrape_file(job_id: int, in_path: Path) -> None:
 
     with progress_lock:
         display_progress()
-        print(f"\n[✓ W{job_id}] Terminé → {out_path}")
+        print(f"\n[✓ W{job_id}] Terminé → {out_path} | erreurs : {err_path}")
 
 # ────────────────────────────────────────────── MAIN
 def main() -> None:
-    # filtre les fichiers réellement présents
     present = [Path(p) for p in INPUT_FILES if Path(p).is_file()]
     if not present:
         print("Aucun fichier d’input trouvé.")
         return
 
-    # init compteurs
     progress_done.extend([0] * len(present))
     progress_total.extend([0] * len(present))
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(present)) as ex:
         futures = [
-            ex.submit(scrape_file, i+1, path)
+            ex.submit(scrape_file, i + 1, path)
             for i, path in enumerate(present)
         ]
         concurrent.futures.wait(futures)
