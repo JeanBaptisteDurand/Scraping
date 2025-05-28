@@ -3,24 +3,27 @@
 
 """
 Scraper pour l’API Ape.store
-• Parcourt les pages jusqu’à ce que "items" soit vide
-• Affiche chaque token et ses champs dans le terminal
-• Enregistre tous les tokens dans un fichier CSV
-• Pause : 1 s entre les pages, 3 s (puis retry) si la requête échoue
-• Ajoute des en-têtes HTTP type navigateur (User-Agent, Origin, Referer…) pour éviter le 403
+• 5 workers parallèles :
+    - W1 : pages   0–1000
+    - W2 : pages 1000–2000
+    - W3 : pages 2000–3000
+    - W4 : pages 3000–4000
+    - W5 : pages 4000–5000
+  (les pages 1000/2000/3000/4000 sont donc scannées deux fois)
+• Même logique interne qu’à l’origine ; seule la parallélisation + les compteurs ont été ajoutées
 """
 
 import csv
 import time
 import requests
-from typing import Dict, List
+import concurrent.futures
+import threading
+from typing import Dict, List, Tuple
 
 # ──────────────────────────────────────────────
 BASE_URL       = "https://ape.store/api/tokens"
-CSV_FILE       = "tokens.csv"
 PAGE_DELAY_S   = 1   # délai entre deux pages
 RETRY_DELAY_S  = 3   # délai avant retry en cas d’erreur réseau / 403
-# En-têtes « navigateur » qui débloquent l’API
 HEADERS = {
     "User-Agent": ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
                    "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"),
@@ -29,7 +32,29 @@ HEADERS = {
     "Origin":  "https://ape.store",
     "Referer": "https://ape.store/",
 }
+# Plages [start, end] inclusives + nom du CSV
+JOBS: List[Tuple[int, int, str]] = [
+    (   0, 1000, "tokens_0000-1000.csv"),
+    (1000, 2000, "tokens_1000-2000.csv"),
+    (2000, 3000, "tokens_2000-3000.csv"),
+    (3000, 4000, "tokens_3000-4000.csv"),
+    (4000, 5000, "tokens_4000-5000.csv"),
+]
+# Progression partagée entre threads
+progress_lock = threading.Lock()
+progress_pages_done = [0] * len(JOBS)                # pages déjà traitées
+progress_total      = [end - start + 1 for start, end, _ in JOBS]
 # ──────────────────────────────────────────────
+
+
+def display_progress() -> None:
+    """Affiche la ligne de progression agrégée des 5 workers."""
+    line = " | ".join(
+        f"Worker{i+1} : {progress_pages_done[i]:4}/{progress_total[i]:4}"
+        for i in range(len(JOBS))
+    )
+    # \r pour réécrire la ligne ; flush pour affichage instantané
+    print("\r" + line, end="", flush=True)
 
 
 def fetch_page(session: requests.Session, page: int) -> Dict:
@@ -43,30 +68,30 @@ def fetch_page(session: requests.Session, page: int) -> Dict:
         "chain":  0,
     }
     resp = session.get(BASE_URL, params=params, headers=HEADERS, timeout=10)
-    resp.raise_for_status()                # soulève une exception si HTTP != 200
+    resp.raise_for_status()
     return resp.json()
 
 
-def main() -> None:
-    page   = 0
-    writer = None                          # sera initialisé à la 1ʳᵉ écriture
+def scrape_range(job_id: int, start: int, end: int, csv_path: str) -> None:
+    """Worker : pages [start, end] inclusives → csv_path."""
+    page   = start
+    writer = None
 
     with requests.Session() as session, \
-         open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
+         open(csv_path, "w", newline="", encoding="utf-8") as f:
 
-        while True:
+        while page <= end:
             # ───────── Essai / retry ─────────
             try:
                 data = fetch_page(session, page)
             except Exception as exc:
-                print(f"[⚠] Problème sur la page {page} : {exc}. "
-                      f"Nouvel essai dans {RETRY_DELAY_S}s…")
+                print(f"\n[⚠ W{job_id}] Problème page {page} : {exc}. "
+                      f"Retry dans {RETRY_DELAY_S}s…")
                 time.sleep(RETRY_DELAY_S)
                 continue
 
             items: List[Dict] = data.get("items", [])
-            if not items:                  # {"items":[],"pageCount":48000} → fin
-                print(f"[✔] Page {page} vide : arrêt du scraping.")
+            if not items:                  # page vide → stop
                 break
 
             # ───────── Initialisation du CSV ─────────
@@ -106,20 +131,31 @@ def main() -> None:
                 is_streaming  = token["isStreaming"]
                 stream_views  = token["streamViewers"]
 
-                # Affichage complet dans le terminal
-                print(f"Token {id_} — {name} ({symbol})")
-                for k, v in token.items():
-                    print(f"   {k}: {v}")
-                print("-" * 50)
-
-                # Sauvegarde CSV
+                # Affichage détaillé désactivé ; on ne garde que la sauvegarde
                 writer.writerow(token)
+
+            # ───────── Mise à jour des compteurs ─────────
+            with progress_lock:
+                progress_pages_done[job_id - 1] += 1
+                display_progress()
 
             page += 1
             time.sleep(PAGE_DELAY_S)
 
-    print(f"[✓] Scraping terminé. {page} pages parcourues. "
-          f"Données sauvegardées dans « {CSV_FILE} ».")
+    # Affichage final propre pour ce worker (avec saut de ligne)
+    with progress_lock:
+        display_progress()
+        print(f"\n[✓ W{job_id}] Terminé. Données dans « {csv_path} ».")
+
+
+def main() -> None:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        futures = [
+            executor.submit(scrape_range, i + 1, start, end, csv_file)
+            for i, (start, end, csv_file) in enumerate(JOBS)
+        ]
+        concurrent.futures.wait(futures, return_when=concurrent.futures.ALL_COMPLETED)
+    print("\n[✓] Tous les workers ont terminé.")
 
 
 if __name__ == "__main__":
