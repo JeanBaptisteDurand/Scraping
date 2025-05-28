@@ -2,47 +2,45 @@
 # -*- coding: utf-8 -*-
 
 """
-Fusionne tous les fichiers CSV "tokens_*.csv" présents dans le répertoire
-courant et écrit un seul fichier "tokens_merged.csv".
+Fusionne et trie (ordre décroissant) les fichiers "tokens_*.csv".
 
-• Lit chaque fichier avec pandas
-• Concatène verticalement
-• Supprime les doublons sur la colonne "id" (gardant la première occurrence)
-• Conserve l'ordre original des colonnes
+• Concatène tous les tokens_*.csv du dossier courant
+• Supprime les doublons sur la colonne 'id'
+• Trie par 'id' décroissant (le plus grand en haut)
+• Écrit le résultat dans 'tokens_merged.csv'
 """
 
 import glob
-import os
 import pandas as pd
 
 MERGED_NAME = "tokens_merged.csv"
 
 def main() -> None:
-    # 1. Trouve tous les fichiers tokens_*.csv (triés par nom)
+    # 1. Trouver les fichiers
     csv_files = sorted(glob.glob("tokens_*.csv"))
     if not csv_files:
-        print("Aucun fichier tokens_*.csv trouvé dans le dossier courant.")
+        print("Aucun fichier tokens_*.csv trouvé.")
         return
+    print(f"{len(csv_files)} fichiers détectés :", *csv_files, sep="\n   ")
 
-    print(f"{len(csv_files)} fichier(s) détecté(s) :", *csv_files, sep="\n   ")
-
-    # 2. Charge et concatène
-    frames = []
-    for path in csv_files:
-        print(f"Chargement de {path} …")
-        frames.append(pd.read_csv(path))
-
+    # 2. Charger et concaténer
+    frames = [pd.read_csv(path) for path in csv_files]
     df = pd.concat(frames, ignore_index=True)
 
-    # 3. Supprime les doublons (colonne 'id')
+    # 3. Supprimer les doublons
     if "id" in df.columns:
-        before = len(df)
+        avant = len(df)
         df.drop_duplicates(subset="id", inplace=True)
-        print(f"Doublons supprimés : {before - len(df)}")
+        print(f"Doublons supprimés : {avant - len(df)}")
 
-    # 4. Sauvegarde
+    # 4. Tri décroissant sur 'id'
+    if "id" in df.columns:
+        df["id"] = pd.to_numeric(df["id"], errors="ignore")
+        df.sort_values("id", ascending=False, inplace=True)  # ← ordre décroissant
+
+    # 5. Sauvegarde
     df.to_csv(MERGED_NAME, index=False, encoding="utf-8")
-    print(f"✔ Fusion terminée → {MERGED_NAME} ({len(df)} lignes)")
+    print(f"✔ Fusion + tri terminés – {len(df)} lignes écrites dans {MERGED_NAME}")
 
 if __name__ == "__main__":
     main()
