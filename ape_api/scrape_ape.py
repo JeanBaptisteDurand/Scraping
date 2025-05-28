@@ -14,6 +14,7 @@ Scraper pour l’API Ape.store
 """
 
 import csv
+import sys
 import time
 import requests
 import concurrent.futures
@@ -34,11 +35,12 @@ HEADERS = {
 }
 # Plages [start, end] inclusives + nom du CSV
 JOBS: List[Tuple[int, int, str]] = [
-    (   0, 1000, "tokens_0000-1000.csv"),
-    (1000, 2000, "tokens_1000-2000.csv"),
-    (2000, 3000, "tokens_2000-3000.csv"),
-    (3000, 4000, "tokens_3000-4000.csv"),
-    (4000, 5000, "tokens_4000-5000.csv"),
+    #(   0, 1000, "tokens_0000-1000.csv"),
+    #(1000, 2000, "tokens_1000-2000.csv"),
+    #(2000, 3000, "tokens_2000-3000.csv"),
+    #(3000, 4000, "tokens_3000-4000.csv"),
+    #(4000, 5000, "tokens_4000-5000.csv"),
+    (5000, 6000, "tokens_5000-6000.csv"),
 ]
 # Progression partagée entre threads
 progress_lock = threading.Lock()
@@ -48,13 +50,14 @@ progress_total      = [end - start + 1 for start, end, _ in JOBS]
 
 
 def display_progress() -> None:
-    """Affiche la ligne de progression agrégée des 5 workers."""
+    """Écrit la ligne de progression en effaçant la précédente."""
     line = " | ".join(
         f"Worker{i+1} : {progress_pages_done[i]:4}/{progress_total[i]:4}"
         for i in range(len(JOBS))
     )
-    # \r pour réécrire la ligne ; flush pour affichage instantané
-    print("\r" + line, end="", flush=True)
+    # \r retour au début + \033[K efface jusqu’à la fin de ligne
+    sys.stdout.write("\r\033[K" + line)
+    sys.stdout.flush()
 
 
 def fetch_page(session: requests.Session, page: int) -> Dict:
@@ -85,6 +88,8 @@ def scrape_range(job_id: int, start: int, end: int, csv_path: str) -> None:
             try:
                 data = fetch_page(session, page)
             except Exception as exc:
+                with progress_lock:
+                    print()
                 print(f"\n[⚠ W{job_id}] Problème page {page} : {exc}. "
                       f"Retry dans {RETRY_DELAY_S}s…")
                 time.sleep(RETRY_DELAY_S)
@@ -149,7 +154,7 @@ def scrape_range(job_id: int, start: int, end: int, csv_path: str) -> None:
 
 
 def main() -> None:
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(JOBS)) as executor:
         futures = [
             executor.submit(scrape_range, i + 1, start, end, csv_file)
             for i, (start, end, csv_file) in enumerate(JOBS)
