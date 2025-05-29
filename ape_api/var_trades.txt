@@ -1,0 +1,20 @@
+id               Identifiant interne de la ligne (croissant)                         entier
+tokenID          ID du « pool » ou de la collection (même valeur sur tout le fichier) entier
+to               Adresse EOA qui reçoit le résultat de l’opération                  chaîne (0x…)
+timeStamp        Date-heure ISO 8601 de la transaction                              UTC
+transactionHash  Hash Ethereum de la transaction on-chain                          chaîne
+tokenIn          Adresse du token envoyé vers le contrat                            chaîne
+                   • 0 ⇒ aucun token n’entre (cas d’un achat)
+                   • adresse du token ⇒ des tokens entrent (cas d’une vente)
+nativeIn         Quantité d’ETH (en wei) envoyée vers le contrat                   entier
+tokenOut         Adresse du token retiré du contrat (symétrique de tokenIn)        chaîne
+nativeOut        ETH (en wei) que le contrat renvoie à l’utilisateur               entier
+priceBefore      Prix unitaire du token avant l’opération                          gwei (1 gwei = 10⁻⁹ ETH)
+priceAfter       Prix unitaire du token après l’opération                          gwei
+tokenChange      Variation d’offre : +Q ⇒ Q tokens frappés (achat)                 décimales du token (souvent 10¹⁸)
+                 -Q ⇒ Q tokens brûlés (vente)
+nativeVolume     Volume d’ETH réellement échangé (facilité de lecture)             ETH
+key              Dupliqué de id (clé de partition dans d’autres outils)            entier
+nativePrice      Placeholder pour le prix de l’ETH en stablecoins (0 ici)          entier
+bump             Drapeau interne à l’indexation (inutile pour analyse trading)     bool
+tokenAddress     Adresse du contrat ERC-20 concerné                                chaîne
