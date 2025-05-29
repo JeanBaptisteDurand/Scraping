@@ -6,7 +6,7 @@
 
 ## stat
 rajouter au token bol no transaction / no data
-been validated
+une courbe qui montre levolition du prix du token en eth par rapport a la liquidity en eth
 
 
 correlation nombre de token creer par jour et le nombre de transaction et le volume en eth sur le launchpad et letat du btc/eth
@@ -58,8 +58,13 @@ Swap SELL (token → ETH)	tokenIn > 0 ET nativeOut > 0
 
 ## norma
 
+NORMALISER NB DE TOKEN
+
 mettre uniquement les donnees utile,
 enelver les transaction post market cap de 70k si il y en a 
+mettre tout en eth pas en gwei
+rajouter des info macro sur btc et eth a terme
+token sans transaction
 
 pour chaque transaction
 
@@ -84,9 +89,9 @@ eth in
 token out
 eth out
 token in
-price before
-price after
-price change
+price before (a normaliser)
+price after  (a normaliser)
+price change  ( a normaliser)
 bool buy/sell transaction
 
 
@@ -95,3 +100,16 @@ volume achat
 volume vente
 tx sell
 tx buy
+
+
+
+market cap usd -> circulative supply (cumulative) * last eth price * eth_price_usd
+
+Liquidity -> cumul des entre et sortie de eth, si un user echange ses eth contre des token, on fait monter liquidity
+liquidity usd -> eth cumuler * eth price usd
+
+circulative supply -> cumul sortie entre de token, si le token sors du contrat vers le user on ajoute, si le user remet les tokens dans le contrats on diminue
+
+last eth price -> abs(nativeVolume )/abs(tokenChange)
+
+rajouter a la main eth_price_usd avec le prix de un eth en usd

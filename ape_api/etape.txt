@@ -1,0 +1,16 @@
+1 - scrapper listes de tout les token
+2 - scrapper transactions de tout les tokens
+--- donnes traiter, donc faire une copie a partir de la
+3 - supprimer token sans transaction
+4 - rajouter eth usd price
+5 - calculer market cap usd, Liquidity, Liquidity usd, circulative supply, last eth price
+6 - supprimer les donnees > 70k marketcap
+7 - calculer et rajouter le volume du nb de token/j et de tx/j sur le launchpad
+
+
+8 - normaliser les donnees dont le nb de token par Token
+ - finir de preparer les donnes pour le model :
+    rajouter bool createur sur les transaction
+            bool buy/sell
+            toute les autres data
+
