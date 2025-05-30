@@ -14,7 +14,7 @@ Fusionne et trie les fichiers « trades_*.csv ».
 import glob
 import pandas as pd
 
-MERGED_NAME = "trades_merged.csv"
+MERGED_NAME = "token_trades_merged.csv"
 
 def main() -> None:
     # 1. Repérer les fichiers (on force l’ordre numérique pour éviter « 5000 » avant « 4000 »)
