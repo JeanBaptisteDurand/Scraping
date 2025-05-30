@@ -109,6 +109,7 @@ Liquidity -> cumul des entre et sortie de eth, si un user echange ses eth contre
 liquidity usd -> eth cumuler * eth price usd
 
 circulative supply -> cumul sortie entre de token, si le token sors du contrat vers le user on ajoute, si le user remet les tokens dans le contrats on diminue
+en soit cest un cumul de token change
 
 last eth price -> abs(nativeVolume )/abs(tokenChange)
 
