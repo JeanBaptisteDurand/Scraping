@@ -2,9 +2,13 @@ version: '3.9'
 
 services:
   streamlit:
-    build: .
+    image: streamlit-pygwalker:latest
     ports:
       - "8501:8501"
     volumes:
       - .:/app
-    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '8.0'
+          memory: 16G

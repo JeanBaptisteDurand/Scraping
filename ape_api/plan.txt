@@ -1,0 +1,88 @@
+🧱 PHASE 1 — Modélisation IA
+🎯 Objectif : créer des modèles IA robustes pour détecter si un token atteindra 15k liquidity
+
+✅ Étapes :
+
+Préparation des données
+- Nettoyage & parsing
+- Yeo-Johnson + StandardScaler
+- Séquence glissante de transactions par token
+- Cible y = 1 si le token atteint 15k un jour, sinon 0
+
+Entraînement des modèles
+- XLSTM pour prédictions progressives (streaming)
+- PatchTST pour prédictions sur bloc de tx (vue globale)
+- Évaluation croisée et export .pkl
+
+Validation & calibration
+- Évaluer : AUC, F1, accuracy, early prediction rate
+- Sauver les modèles + scaler + paramètres
+
+🔁 PHASE 2 — Moteur de backtesting intelligent
+🎯 Objectif : simuler l'achat/vente avec règles stratégiques basées sur les prédictions IA
+
+✅ Composants :
+
+Lecture séquentielle par token
+- Buffer de transactions glissantes
+- Appel IA à chaque n transactions
+- Stockage des probas XLSTM + PatchTST à chaque pas
+
+Système de règles
+- Entrée : if xlstm + patch > entry_threshold
+- Sortie : if xlstm + patch < exit_threshold ou liquidity > 15k
+- Condition cooldown, stop_loss, max_duration, etc.
+
+Métriques de performance
+- % de trades gagnants / perdants / stuck
+- ROI simulé (ex: +30% sur token validé, -10% en sortie anticipée)
+- Durée moyenne d’un trade
+- Temps moyen de déclenchement
+
+Fuzzing intelligent
+- Boucle sur entry_threshold et exit_threshold
+- Comparaison de la rentabilité totale
+- Possibilité de tester par période (jour, mois, token type)
+
+🚀 PHASE 3 — Sélection automatique des meilleures stratégies
+🎯 Objectif : choisir dynamiquement la meilleure combinaison de règles selon l’historique
+
+✅ Approches possibles :
+
+Grid search brut
+- Teste (entry, exit) ∈ [1.5–2.0], pas de 0.05
+- Sauvegarde les combinaisons les plus rentables
+
+Bayesian optimization (plus pro)
+- Utilise scikit-optimize ou optuna
+- Trouve plus vite les combinaisons gagnantes
+
+Analyse segmentée
+- Stratégie différente selon :
+  - l’heure du trade
+  - le volume initial
+  - le type de pump
+
+🧠 PHASE 4 — Outil d'exécution / simulation live
+🎯 Objectif : utiliser le moteur IA en streaming ou semi-live sur de nouveaux tokens
+
+✅ Features à implémenter :
+
+Streaming live
+- Enregistrement en temps réel d’un nouveau token (via API ou scraping)
+- Buffer circulaire (ex: 10 dernières transactions)
+- Prédiction IA à chaque pas
+
+Déclencheur virtuel
+- Logique : "j’achète" si score > 1.8
+- Tracking : date, prix, tx ID, score IA
+- Simulation du comportement réel
+
+Journal de trading
+- Stocke toutes les décisions + historique
+- Analyse après-coup
+
+Interface Web (optionnel)
+- Résumés graphiques
+- Panneau IA temps réel
+- Historique de performance

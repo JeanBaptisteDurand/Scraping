@@ -1,0 +1,37 @@
+nb total tx buy
+nb total tx sell
+total volume of buy in eth
+total volume of sell in eth
+ssecond since deploy
+
+Utilise Min-Max Scaling ou Standard Scaling (z-score) sur toutes les colonnes numériques (sauf l’horodatage).
+
+variable :
+volume achat_3s_30s, 5min, 1h
+volume vente_3s_30s, 5min, 1h
+nb tx sell_3s_30s, 5min, 1h
+nb tx buy_3s_30s, 5min, 1h
+rolling_nativeVolume_3s_30s, 5min, 1h
+creation de token sur le site / transactions, 1j, 7j, 30j
+
+
+
+tokenid pour le group by mais ne rentre pas dans le model
+
+supprimer transactionHash market_cap_usd nativePrice, bump, to, key, id
+
+tokenID
+timeStamp,tokenIn,nativeIn,tokenOut,nativeOut,priceBefore,priceAfter,
+tokenChange,nativeVolume,eth_usd_price,buy_sell,last_eth_price,
+circulative_supply,liquidity_eth,liquidity_usd
+nb total tx buy
+nb total tx sell
+total volume of buy in eth
+total volume of sell in eth
+ssecond since deploy
+volume achat_3s_30s, 5min, 1h
+volume vente_3s_30s, 5min, 1h
+nb tx sell_3s_30s, 5min, 1h
+nb tx buy_3s_30s, 5min, 1h
+rolling_nativeVolume_3s_30s, 5min, 1h
+creation de token sur le site / transactions, 1j, 7j, 30j

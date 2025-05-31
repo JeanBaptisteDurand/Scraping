@@ -28,3 +28,9 @@ add usd col
 add creator bool
 add buy sell flag
 add on chain metric
+
+
+log
+standardiser
+set train, validation, test 
+sklearn pour les metrics

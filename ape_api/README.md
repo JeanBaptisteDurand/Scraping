@@ -1,3 +1,7 @@
+# step up
+scrapper contract / blockchain pour avoir toutes les transaction dont mint et burn
+
+
 # code
 1.Launch (step 1 - 2 - 3)
 2.Update data (do step 1/2/3) just add new data (so check old data to compare)

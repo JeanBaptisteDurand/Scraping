@@ -1,0 +1,9 @@
+# .streamlit/config.toml
+[server]
+headless = true
+runOnSave = true
+maxMessageSize = 200
+requestTimeout = 300
+
+[browser]
+gatherUsageStats = false

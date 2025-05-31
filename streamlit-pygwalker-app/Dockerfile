@@ -8,10 +8,22 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
+
+# Ajout de la config Streamlit
+RUN mkdir -p ~/.streamlit && \
+    echo "\
+[server]\n\
+headless = true\n\
+runOnSave = true\n\
+maxMessageSize = 200\n\
+requestTimeout = 300\n\
+\n\
+[browser]\n\
+gatherUsageStats = false\n" > ~/.streamlit/config.toml
 
 EXPOSE 8501
 
