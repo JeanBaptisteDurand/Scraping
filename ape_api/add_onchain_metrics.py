@@ -1,46 +1,62 @@
 #!/usr/bin/env python3
-# add_onchain_metrics.py
+# rebuild_cumulatives.py
 import pandas as pd
 import numpy as np
 
-# ------------------------------------------------------------------ #
-# Chargement + nettoyage minimal
-# ------------------------------------------------------------------ #
-df = pd.read_csv("token_trades_with_buy_sell.csv", low_memory=False)
+src  = "token_trades_with_buy_sell.csv"
+dest = "token_trades_with_onchain_metrics.csv"
+
+df = pd.read_csv(src, low_memory=False)
 df.columns = df.columns.str.strip()
 
 # ------------------------------------------------------------------ #
-# Conversions numériques utiles
+# Types
 # ------------------------------------------------------------------ #
-df["tokenChange"]   = pd.to_numeric(df["tokenChange"],   errors="coerce")
-df["nativeVolume"]  = pd.to_numeric(df["nativeVolume"],  errors="coerce")
-df["eth_usd_price"] = pd.to_numeric(df["eth_usd_price"], errors="coerce")
-df["timeStamp"]     = pd.to_datetime(df["timeStamp"],    errors="coerce")
+for col in ["tokenChange", "nativeVolume", "eth_usd_price", "buy_sell"]:
+    df[col] = pd.to_numeric(df[col], errors="coerce")
+df["timeStamp"] = pd.to_datetime(df["timeStamp"], errors="coerce")
 
 # ------------------------------------------------------------------ #
-# Prix ETH par token sur chaque tx
-# last_eth_price = |nativeVolume| / |tokenChange|
+# 1) Chronologie ASCENDANTE pour un cumsum correct
+# ------------------------------------------------------------------ #
+df = df.sort_values(["tokenID", "timeStamp"])
+
+# ------------------------------------------------------------------ #
+# last_eth_price  (|ETH| / |tokens|)
 # ------------------------------------------------------------------ #
 df["last_eth_price"] = df["nativeVolume"].abs() / df["tokenChange"].abs()
-df.loc[~np.isfinite(df["last_eth_price"]), "last_eth_price"] = np.nan  # gère div/0
+df.loc[~np.isfinite(df["last_eth_price"]), "last_eth_price"] = np.nan
 
 # ------------------------------------------------------------------ #
-# Cumulatifs PAR TOKEN (du + ancien au + récent)
+# Circulative supply  (cumul natif, signe déjà correct dans tokenChange)
 # ------------------------------------------------------------------ #
-df = df.sort_values(["tokenID", "timeStamp"])          # ordre chrono pour cumsum
-
-df["circulative_supply"] = df.groupby("tokenID")["tokenChange"]  .cumsum()
-df["liquidity_eth"]      = df.groupby("tokenID")["nativeVolume"].cumsum()
+df["circulative_supply"] = df.groupby("tokenID")["tokenChange"].cumsum()
 
 # ------------------------------------------------------------------ #
-# Métriques dérivées
+# Liquidity ETH  (signe dépend de buy/sell)
+#   buy  → +nativeVolume
+#   sell → -nativeVolume
 # ------------------------------------------------------------------ #
-df["liquidity_usd"]  = df["liquidity_eth"]   * df["eth_usd_price"]
-df["market_cap_usd"] = df["circulative_supply"] * df["last_eth_price"] * df["eth_usd_price"]
+df["signed_eth"] = np.where(df["buy_sell"] == 0,
+                            df["nativeVolume"],        # buy  → +
+                            -df["nativeVolume"])       # sell → −
+df["liquidity_eth"] = df.groupby("tokenID")["signed_eth"].cumsum()
 
 # ------------------------------------------------------------------ #
-# Tri final et sauvegarde
+# Valeurs USD
+# ------------------------------------------------------------------ #
+df["liquidity_usd"]  = df["liquidity_eth"] * df["eth_usd_price"]
+df["market_cap_usd"] = (df["circulative_supply"]
+                        * df["last_eth_price"]
+                        * df["eth_usd_price"])
+
+# ------------------------------------------------------------------ #
+# 2) Affichage final : tokenID ↓ puis timeStamp ↓
 # ------------------------------------------------------------------ #
 df = df.sort_values(["tokenID", "timeStamp"], ascending=[False, False])
-df.to_csv("token_trades_with_onchain_metrics.csv", index=False)
-print("✅ token_trades_with_onchain_metrics.csv créé.")
+
+# Nettoyage colonne provisoire
+df.drop(columns="signed_eth", inplace=True)
+
+df.to_csv(dest, index=False)
+print(f"✅ Cumulatifs reconstruits dans '{dest}'")
