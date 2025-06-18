@@ -1,3 +1,13 @@
+Scaling MinMaxScaler
+L1 Normalization
+L2 Normalization
+Standardization StandardScaler
+Binarization (pour le texte par exemple)
+Label Encoding
+Log Transformation
+
+
+
 1 - scrapper listes de tout les token
 2 - scrapper transactions de tout les tokens
 --- donnes traiter, donc faire une copie a partir de la
