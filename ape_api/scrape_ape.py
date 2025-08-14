@@ -35,12 +35,13 @@ HEADERS = {
 }
 # Plages [start, end] inclusives + nom du CSV
 JOBS: List[Tuple[int, int, str]] = [
-    #(   0, 1000, "tokens_0000-1000.csv"),
-    #(1000, 2000, "tokens_1000-2000.csv"),
-    #(2000, 3000, "tokens_2000-3000.csv"),
-    #(3000, 4000, "tokens_3000-4000.csv"),
-    #(4000, 5000, "tokens_4000-5000.csv"),
+    (   0, 1000, "tokens_0000-1000.csv"),
+    (1000, 2000, "tokens_1000-2000.csv"),
+    (2000, 3000, "tokens_2000-3000.csv"),
+    (3000, 4000, "tokens_3000-4000.csv"),
+    (4000, 5000, "tokens_4000-5000.csv"),
     (5000, 6000, "tokens_5000-6000.csv"),
+    (6000, 7000, "tokens_5000-6000.csv"),
 ]
 # Progression partagée entre threads
 progress_lock = threading.Lock()
