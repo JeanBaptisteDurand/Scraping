@@ -1,0 +1,11 @@
+scrape_ape
+scrape_trans_ape
+merge token
+merge trades
+trace tokens
+trace trades
+eth price scraper
+add usd col
+add creator bool
+add buy sell flag
+add on chain metric
